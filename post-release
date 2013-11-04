@@ -19,9 +19,11 @@ cd \$HOME
 
 while read line || [ -n "\$line" ]; do
   name=\${line%%:*}
-  command=\${line#*: }
-  echo "Starting \${name}..."
-  sh -c "\${command} | sed -e 's/^/\${name}| /'" &
+  if [[ "\${BOOT_PROCS:=',web,'}" == *",\$name,"* ]]; then
+    command=\${line#*: }
+    echo "Starting \${name}..."
+    sh -c "\${command} | sed -e 's/^/\${name}| /'" &
+  fi
 done < "Procfile"
 
 onexit() {
