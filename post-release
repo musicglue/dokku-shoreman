@@ -17,11 +17,11 @@ for file in \$HOME/.profile.d/*; do source \$file; done
 hash -r
 cd \$HOME
 
-processes = ",\${BOOT_PROCS:=web},"
+export BOOT_PROCESSES=",\${BOOT_PROCS:=web},"
 
 while read line || [ -n "\$line" ]; do
   name=\${line%%:*}
-  if [[ "\$processes" == *",\$name,"* ]]; then
+  if [[ "\$BOOT_PROCESSES" == *",\$name,"* ]]; then
     command=\${line#*: }
     echo "Starting \${name}..."
     sh -c "\${command} | sed -e 's/^/\${name}| /'" &
