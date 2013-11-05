@@ -20,7 +20,7 @@ cd \$HOME
 export BOOT_PROCESSES=",\${BOOT_PROCS:=web},"
 
 if [ ! -f Procfile ]; then
-  ruby -ryaml -e "puts ((YAML.load_file('.release')['default_process_types'] || {}).map { |k, v| \"#{k}: #{v}\"} * \"\n\")" > Procfile
+  ruby -ryaml -e "puts ((YAML.load_file('.release')['default_process_types'] || {}).map { |k, v| \\"#{k}: #{v}\\"} * \\"\\n\\")" > Procfile
 fi
 
 while read line || [ -n "\$line" ]; do
