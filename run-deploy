@@ -5,16 +5,17 @@ require 'psych'
 @config_file = File.join(ENV['DOKKU_ROOT'], @app, 'processes.yml')
 
 unless File.exists?(@config_file)
-        default = {scale: {web: 1}, processes: {}, ports: {}}
-        File.open(@config_file, "w") do |file|
-                file.write Psych.dump(default)
-        end
+  default = {scale: {web: 1}, processes: {}, ports: {}}
+
+  File.open(@config_file, "w") do |file|
+    file.write Psych.dump(default)
+  end
 end
 
 @settings = Psych.load_file(@config_file)
 
 @settings[:processes].each do |proctype, ids|
-        ids.respond_to?(:join) ? `docker kill #{ids.join(' ')}` : `docker kill #{ids}`
+  ids.respond_to?(:join) ? `docker kill #{ids.join(' ')}` : `docker kill #{ids}`
 end
 
 @settings[:processes] = {}
@@ -22,20 +23,15 @@ end
 
 @settings[:scale].each do |proctype, quantity|
   puts "-----> Scaling #{proctype} to #{quantity}"
-#        if quantity > 1
-#                puts "-----> Sorry, we don't support more than a single node of each type"
-#                quantity = 1
-#   @settings[:scale][proctype] = quantity
-#        end
 
-        quantity.times do
-                id = `docker run -d -p 5000 -e PORT=5000 #{@image} /bin/bash -c '/start #{proctype}'`.chomp
-                @settings[:processes][proctype] ||= []
-                @settings[:processes][proctype] << id
+  quantity.times do
+    id = `docker run -d -p 5000 -e PORT=5000 #{@image} /bin/bash -c '/start #{proctype}'`.chomp
+    @settings[:processes][proctype] ||= []
+    @settings[:processes][proctype] << id
 
-                port = `docker port #{id} 5000`.chomp.gsub("0.0.0.0:", "")
-                @settings[:ports][proctype] ||= []
-                @settings[:ports][proctype] << port
+    port = `docker port #{id} 5000`.chomp.gsub("0.0.0.0:", "")
+    @settings[:ports][proctype] ||= []
+    @settings[:ports][proctype] << port
 
     if proctype == :web then
       root_path = File.join(ENV['DOKKU_ROOT'], @app)
@@ -44,7 +40,7 @@ end
       `echo #{port} > #{File.join(root_path, 'PORT')}`
       `echo "http://#{hostname}:#{port}" > #{File.join(root_path, 'URL')}`
     end
-        end
+  end
 end
 
 File.open(@config_file, "w") do |file|
