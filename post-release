@@ -1,15 +1,8 @@
 #!/bin/bash
 APP="$1"; IMAGE="$2"
 
-read -d '' runner <<'EOF'
-#!/bin/bash
-# **shoreman** is an implementation of the **Procfile** format. Inspired by
-# the original [foreman](http://ddollar.github.com/foreman/) tool for ruby,
-# as well as [norman](https://github.com/josh/norman) for node.js.
-
-# This version is altered for use within dokku
-# .env parsing has been removed
-# children are killed using their parent ID
+read -d '' runner <<-'EOS'
+#!/usr/bin/env bash
 
 set -e
 export HOME=/app
@@ -17,32 +10,29 @@ for file in \$HOME/.profile.d/*; do source \$file; done
 hash -r
 cd \$HOME
 
-export BOOT_PROCESSES=",\${BOOT_PROCS:=web},"
+export DYNO=\$1
 
 if [ ! -f Procfile ]; then
-  ruby -ryaml -e "puts ((YAML.load_file('.release')['default_process_types'] || {}).map { |k, v| \\"#{k}: #{v}\\"} * \\"\\n\\")" > Procfile
+  ruby -ryaml -e \"puts ((YAML.load_file('.release')['default_process_types'] || {}).map { |k, v| \"#{k}: #{v}\"} * \"\n\")\" > Procfile
 fi
 
-while read line || [ -n "\$line" ]; do
-  name=\${line%%:*}
-  if [[ "\$BOOT_PROCESSES" == *",\$name,"* ]]; then
-    command=\${line#*: }
-    echo "Starting \${name}..."
-    sh -c "\${command} | sed -e 's/^/\${name}| /'" &
-  fi
-done < "Procfile"
+cat > /tmp/hammertime <<ES2
+  lines = File.read(\"/app/Procfile\")
+  processes = lines.split(\"\\n\")
+  processes = processes.each_with_object({}) do |line, hsh|
+    args = line.split(\":\")
+    hsh[args[0]] = args[1]
+  end
+  if processes.key?(ENV['DYNO'])
+    command = processes[ENV['DYNO']]
+    puts command
+  end
+ES2
 
-onexit() {
-  echo SIGINT received
-  echo sending SIGTERM to all processes
-  children=\$(ps --ppid=\$\$ -o pid='')
-  kill -- \$children &> /dev/null
-  sleep 1
-}
-trap onexit SIGTERM SIGINT EXIT
-
-wait
-EOF
+export HAMMER="\$(DYNO=\$DYNO ruby /tmp/hammertime)"
+echo \$HAMMER
+exec \$HAMMER
+EOS
 
 set -e
 

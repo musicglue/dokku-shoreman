@@ -1,0 +1,81 @@
+#!/bin/bash
+set -e;
+export DOKKU_ROOT=${DOKKU_ROOT:=/home/dokku}
+
+# Check if name is specified
+if [[ $1 == ps:* ]]; then
+    if [[ -z $2 ]]; then
+        echo "You must specify an app name"
+        exit 1
+    else
+        APP="$2"
+        # Check if app exists with the same name
+        if [[ -d "$DOKKU_ROOT/$APP" ]]; then
+            APP_EXISTS=true
+        else
+            APP_EXISTS=false
+      exit 1
+        fi
+    fi
+fi
+
+export APP_NAME=$2
+
+case "$1" in
+
+  ps:info)
+    ruby <<RUBY
+require 'psych'
+file_root = File.join(ENV['DOKKU_ROOT'], ENV['APP_NAME'])
+proc_file = File.join(file_root, 'processes.yml')
+puts "Your running dynos are:"
+if !File.exists?(proc_file)
+  File.open(proc_file, 'w') do |file|
+    basic = {scale: {web: 1}, processes: {}, ports: {}}
+    file.write Psych.dump(basic)
+  end
+end
+dynos = Psych.load_file(proc_file)
+dynos[:scale].each do |dyno, quantity|
+  puts "#{dyno}: #{quantity}"
+end
+RUBY
+    ;;
+
+  ps:scale)
+    export SCALAR="${*:3}"
+    ruby <<RB2
+require 'psych'
+file_root = File.join(ENV['DOKKU_ROOT'], ENV['APP_NAME'])
+proc_file = File.join(file_root, 'processes.yml')
+scalings = ENV['SCALAR'].split(" ").each_with_object({}) do |nodetype, hsh|
+  process, quantity = nodetype.split("=")
+  process, quantity = process.to_sym, quantity.to_i
+  hsh[process] = quantity
+end
+if !File.exists?(proc_file)
+  File.open(proc_file, 'w') do |file|
+    basic = {scale: {web: 1}, processes: {}, ports: {}}
+    file.write Psych.dump(basic)
+  end
+end
+current = Psych.load_file(proc_file)
+scalings.each do |key, value|
+  if value > 0
+    current[:scale][key] = value
+  else
+    current[:scale].delete(key)
+  end
+end
+File.open(proc_file, "w") do |file|
+  file.write Psych.dump(current)
+end
+puts "Now running:"
+current[:scale].each do |dyno, quantity|
+  puts "#{dyno}: #{quantity}"
+end
+Kernel.system("dokku deploy #{ENV['APP_NAME']} app/#{ENV['APP_NAME']}")
+RB2
+    ;;
+esac
+cat
