@@ -13,7 +13,7 @@ cd \$HOME
 export DYNO=\$1
 
 if [ ! -f Procfile ]; then
-  ruby -ryaml -e \"puts ((YAML.load_file('.release')['default_process_types'] || {}).map { |k, v| \\\"#{k}: #{v}\\\"} * \\\"\n\\\")\" > Procfile
+  ruby -ryaml -e \"puts ((YAML.load_file('.release')['default_process_types'] || {}).map { |k, v| \\\"#{k}: #{v}\\\"} * \\\"\\\n\\\")\" > Procfile
 fi
 
 cat > /tmp/hammertime <<ES2
